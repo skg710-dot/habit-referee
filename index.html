@@ -1,0 +1,422 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Habit Referee</title>
+<meta name="theme-color" content="#18212b">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+:root{
+  --bg:#f3f4f1; --surface:#fff; --ink:#18212b; --muted:#5d6670; --line:#dde1da;
+  --bar:#18212b; --on-bar:#f3f4f1; --bar-muted:#9aa6b2; --bar-line:#33404d;
+  --red:#d6342a; --red-soft:#fbe6e3; --yellow:#f2b705; --yellow-soft:#fff4cf;
+  --green:#1f8a4c; --green-soft:#e2f3e8; --accent:#18212b; --on-accent:#fff;
+  --font:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:ui-monospace,"SF Mono","Roboto Mono",Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#12171d; --surface:#1b222a; --ink:#eef0ec; --muted:#9aa3ac; --line:#2c3540;
+  --bar:#0b0f13; --on-bar:#eef0ec; --bar-muted:#7e8893; --bar-line:#26303a;
+  --red:#ff6a5c; --red-soft:#3a1f1d; --yellow:#ffc933; --yellow-soft:#3a3115;
+  --green:#4fd08a; --green-soft:#17322a; --accent:#eef0ec; --on-accent:#12171d; color-scheme:dark}}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);font-size:15px;line-height:1.4;-webkit-tap-highlight-color:transparent;overscroll-behavior:none}
+.app{height:100%;display:grid;grid-template-rows:auto 1fr auto;max-width:640px;margin:0 auto;background:var(--bg)}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.label{font-size:11px;letter-spacing:.09em;text-transform:uppercase;font-weight:700;color:var(--muted)}
+svg.i{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+
+/* Score header */
+header{background:var(--bar);color:var(--on-bar);padding:calc(10px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) 12px max(16px,env(safe-area-inset-left,0px));position:relative}
+header .title{display:flex;justify-content:space-between;align-items:center;gap:8px;font-weight:800}
+header .title .date{font-size:12px;color:var(--bar-muted);font-weight:400;margin-left:auto}
+.icon-btn{width:40px;height:40px;min-height:0;padding:0;display:grid;place-items:center;border-radius:999px;background:transparent;border:1px solid var(--bar-line);color:var(--on-bar)}
+.icon-btn:disabled{opacity:.3}
+.stats{display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:12px;margin-top:6px;align-items:end}
+.stat{display:grid;min-width:0}
+.stat .label{color:var(--bar-muted)}
+.stat b{font-size:21px;line-height:1.1}
+.stat.score b{font-size:38px;font-weight:800}
+.stat.score.low b{color:#ff7a6e}
+.toast{position:absolute;left:max(16px,env(safe-area-inset-left,0px));right:max(16px,env(safe-area-inset-right,0px));bottom:10px;padding:10px 12px;border-radius:12px;font-weight:700;display:flex;gap:10px;align-items:center;color:#fff}
+.toast.red{background:var(--red)}.toast.green{background:var(--green)}
+.toast .card{width:14px;height:20px;border-radius:2px;background:var(--yellow);transform:rotate(-8deg);flex:none}
+.toast .card.redcard{background:#6d0b06}
+
+/* Scroll area */
+main{overflow-y:auto;-webkit-overflow-scrolling:touch;padding:14px max(14px,env(safe-area-inset-right,0px)) 20px max(14px,env(safe-area-inset-left,0px))}
+.view{display:grid;gap:12px;align-content:start}
+.view[hidden]{display:none}
+h2{font-size:17px;margin:4px 0 0}
+.sec-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+
+button{font:inherit;cursor:pointer;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:8px 14px;min-height:40px}
+button:disabled{opacity:.5}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--yellow);outline-offset:2px}
+.btn-red{background:var(--red);border-color:var(--red);color:#fff;font-weight:700}
+.btn-green{background:var(--green);border-color:var(--green);color:#fff;font-weight:700}
+.btn-dark{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:700}
+.btn-ghost{background:transparent;border-color:transparent;color:var(--muted);padding:6px 8px;min-height:34px}
+input,select{font:inherit;font-size:16px;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:9px 11px;min-height:44px;width:100%}
+
+/* Square habit tiles, 2 per row */
+.tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.tile{aspect-ratio:1/1;max-width:100%;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:12px;display:grid;grid-template-rows:auto auto 1fr auto;gap:4px;position:relative}
+.tile.avoid{border-top:5px solid var(--red)}
+.tile.build{border-top:5px solid var(--green)}
+.tile .kind{display:flex;align-items:center;gap:5px;font-size:10px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;color:var(--muted)}
+.tile.avoid .kind{color:var(--red)} .tile.build .kind{color:var(--green)}
+.tile .name{font-weight:700;font-size:15px;line-height:1.25;min-height:2.5em;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
+.tile .info{font-size:12px;color:var(--muted);display:grid;gap:1px;align-content:end}
+.tile .info b{color:var(--ink)}
+.tile .info .hot{color:var(--red);font-weight:700}
+.tile .info .good{color:var(--green);font-weight:700}
+.tile button{width:100%;min-height:42px;padding:6px;display:flex;align-items:center;justify-content:center;gap:6px}
+.tile button svg.i{width:18px;height:18px}
+.tile.flash-red{animation:fr .5s}.tile.flash-green{animation:fg .5s}
+@keyframes fr{0%{background:var(--red-soft)}100%{background:var(--surface)}}
+@keyframes fg{0%{background:var(--green-soft)}100%{background:var(--surface)}}
+.add-tile{aspect-ratio:1/1;border:2px dashed var(--line);border-radius:16px;background:transparent;color:var(--muted);display:grid;place-items:center;align-content:center;gap:6px;font-weight:700}
+@media (min-width:560px){.tiles{grid-template-columns:repeat(3,minmax(0,1fr))}}
+
+.empty{color:var(--muted);font-size:14px;padding:16px;border:1px dashed var(--line);border-radius:14px;text-align:center}
+.banner{background:var(--yellow-soft);border:1px solid var(--yellow);border-radius:12px;padding:10px 12px;display:flex;gap:10px;align-items:center;justify-content:space-between;font-size:13px}
+.banner button{flex:none;min-height:36px;padding:6px 12px}
+
+.rows{background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.row{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:11px 12px;border-top:1px solid var(--line)}
+.row:first-child{border-top:0}
+.row .grow{flex:1;min-width:0;overflow-wrap:anywhere}
+.row.late b{color:var(--red)}
+.row small{display:block;color:var(--muted);font-size:13px}
+.row .icons{display:flex;gap:4px}
+.row .sq{width:40px;height:40px;min-height:0;padding:0;display:grid;place-items:center}
+.row .sq.del{color:var(--red)}
+.row.confirm{background:var(--red-soft)}
+.d{font-weight:700;white-space:nowrap}.d.neg{color:var(--red)}.d.pos{color:var(--green)}
+.chip{font-size:12px;padding:2px 9px;border-radius:999px;background:var(--yellow-soft);white-space:nowrap}
+
+.form{display:grid;gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px}
+.form label{display:grid;gap:4px;font-size:13px;color:var(--muted)}
+.form .two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.note{font-size:13px;color:var(--muted);margin:0}
+
+/* Bottom tabs */
+nav{display:grid;grid-template-columns:repeat(4,1fr);background:var(--surface);border-top:1px solid var(--line);padding:0 env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)}
+nav button{border:0;border-radius:0;background:transparent;min-height:56px;display:grid;place-items:center;gap:2px;font-size:12px;color:var(--muted);position:relative;padding:6px 0}
+nav button[aria-selected="true"]{color:var(--ink);font-weight:700}
+nav button[aria-selected="true"]::before{content:"";position:absolute;top:0;left:30%;right:30%;height:3px;border-radius:0 0 3px 3px;background:var(--red)}
+.badge{position:absolute;top:5px;left:calc(50% + 6px);background:var(--red);color:#fff;font-size:11px;font-weight:700;border-radius:999px;min-width:18px;height:18px;line-height:18px;padding:0 5px}
+@media (prefers-reduced-motion:reduce){.tile.flash-red,.tile.flash-green{animation:none}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m9 9 6 6M15 9l-6 6"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-ban" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m6 6 12 12"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24"><path d="m6 15 6-6 6 6"/></symbol>
+</svg>
+<div class="app" id="app">
+  <header>
+    <div class="title"><span>Habit Referee</span><span class="date" id="dateLbl"></span>
+      <button class="icon-btn" id="undoBtn" aria-label="Undo last action" title="Undo last action"><svg class="i"><use href="#i-undo"/></svg></button></div>
+    <div class="stats" id="stats"></div>
+    <div class="toast" id="toast" hidden></div>
+  </header>
+
+  <main id="main">
+    <section class="view" id="v-today">
+      <div class="banner" id="exampleBanner" hidden>
+        <span>Example habits shown. Remove them and add your own.</span>
+        <button class="btn-dark" id="clearExamples">Remove examples</button>
+      </div>
+      <div class="tiles" id="tiles"></div>
+    </section>
+
+    <section class="view" id="v-owed" hidden>
+      <div class="sec-head"><h2>Penalties you owe</h2><span class="label">24 h or it doubles</span></div>
+      <div id="owedBox"></div>
+      <p class="note">Do the task (or pay the fine) within 24 hours to win back half the points you lost. Miss it and you lose those points again.</p>
+    </section>
+
+    <section class="view" id="v-log" hidden>
+      <h2>Match log</h2>
+      <div id="logBox"></div>
+    </section>
+
+    <section class="view" id="v-habits" hidden>
+      <h2 id="formTitle">Add a habit</h2>
+      <form class="form" id="habitForm">
+        <label>Habit name<input id="f-name" required maxlength="60" placeholder="e.g. Scrolling reels after 11 pm" autocomplete="off"></label>
+        <label>Type
+          <select id="f-type"><option value="avoid">Stop it (penalise slips)</option><option value="build">Build it (reward each day)</option></select>
+        </label>
+        <div class="two">
+          <label><span id="f-pts-label">Points lost per slip</span><input id="f-pts" type="number" inputmode="numeric" min="1" max="100" value="10" required></label>
+          <label class="avoid-only">Fine per slip (₹)<input id="f-fine" type="number" inputmode="numeric" min="0" value="50"></label>
+        </div>
+        <label class="avoid-only">Penalty task<input id="f-task" maxlength="60" placeholder="e.g. 20 push-ups"></label>
+        <div class="actions"><button class="btn-dark" type="submit" id="f-submit">Add habit</button><button type="button" class="btn-ghost" id="f-cancel" hidden>Cancel</button></div>
+      </form>
+
+      <h2>Your habits</h2>
+      <div id="habitRows"></div>
+
+      <h2>Backup</h2>
+      <div class="form">
+        <p class="note">Your record lives only on this phone. Save a backup now and then, or to move it to another device.</p>
+        <div class="actions">
+          <button id="exportBtn">Save backup file</button>
+          <button id="importBtn">Restore from file</button>
+          <input type="file" id="importFile" accept="application/json,.json" hidden>
+        </div>
+        <div class="actions" id="resetBox"><button class="btn-ghost" id="resetBtn">Reset everything</button></div>
+      </div>
+    </section>
+  </main>
+
+  <nav role="tablist">
+    <button role="tab" data-tab="today" aria-selected="true"><svg class="i" viewBox="0 0 24 24"><rect x="5" y="3" width="11" height="16" rx="2"/><path d="M19 7v12a2 2 0 0 1-2 2H9"/></svg>Today</button>
+    <button role="tab" data-tab="owed" aria-selected="false"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Owed<span class="badge" id="owedBadge" hidden></span></button>
+    <button role="tab" data-tab="log" aria-selected="false"><svg class="i" viewBox="0 0 24 24"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg>Log</button>
+    <button role="tab" data-tab="habits" aria-selected="false"><svg class="i" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Habits</button>
+  </nav>
+</div>
+
+<script>
+const START = 100, DAY = 86400000, KEY = "habit-referee-v1";
+const EXAMPLE_NAMES = ["Scrolling reels in bed", "Ordering junk food", "Read 20 pages"];
+const $ = id => document.getElementById(id);
+const uid = () => Math.random().toString(36).slice(2, 10);
+const dayKey = (t = Date.now()) => { const d = new Date(t); return d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate(); };
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const inr = n => "₹" + n.toLocaleString("en-IN");
+const ic = (name, extra = "") => `<svg class="i" ${extra}><use href="#i-${name}"/></svg>`;
+const blank = () => ({score:START, fines:0, created:Date.now(), habits:[], owed:[], log:[], undo:null});
+
+function examples(){
+  const now = Date.now();
+  return {...blank(), habits: [
+    {id:uid(), example:true, type:"avoid", name:EXAMPLE_NAMES[0], pts:10, fine:50, task:"20 push-ups", slips:[now-3*DAY], doneDays:[], added:now-5*DAY},
+    {id:uid(), example:true, type:"avoid", name:EXAMPLE_NAMES[1], pts:15, fine:100, task:"30-minute walk", slips:[], doneDays:[], added:now},
+    {id:uid(), example:true, type:"build", name:EXAMPLE_NAMES[2], pts:5, fine:0, task:"", slips:[], doneDays:[], added:now}
+  ]};
+}
+function load(){
+  let s; try { s = JSON.parse(localStorage.getItem(KEY)); } catch {}
+  if (!s || !Array.isArray(s.habits)) return examples();
+  // Older versions didn't tag example habits; tag them so "Remove examples" always works.
+  s.habits.forEach(h => { if (h.example === undefined && EXAMPLE_NAMES.includes(h.name)) h.example = true; });
+  delete s.examples;
+  return s;
+}
+let S = load(), editingId = null, confirmDel = null;
+function save(){ try { localStorage.setItem(KEY, JSON.stringify(S)); } catch {} }
+function commit(){ save(); render(); }
+function snap(){ const c = JSON.parse(JSON.stringify(S)); c.undo = null; S.undo = c; }
+function log(text, delta){ S.log.unshift({t:Date.now(), text, delta}); S.log = S.log.slice(0, 200); }
+
+/* rules */
+const slipsToday = h => h.slips.filter(t => dayKey(t) === dayKey()).length;
+const cleanDays = h => Math.floor((Date.now() - (h.slips.length ? Math.max(...h.slips) : (h.added || S.created))) / DAY);
+function streak(h){ const s = new Set(h.doneDays); let n = 0, t = Date.now(); if (!s.has(dayKey(t))) t -= DAY; while (s.has(dayKey(t))) { n++; t -= DAY; } return n; }
+function overdue(){
+  let ch = false;
+  for (const o of S.owed) if (!o.doubled && Date.now() - o.t > DAY) { o.doubled = true; S.score -= o.pts; S.fines += o.fine; ch = true; log(`Unpaid penalty doubled: ${o.task || o.habit}`, -o.pts); }
+  if (ch) save();
+}
+function pulse(id, cls){ const el = document.querySelector(`.tile[data-id="${id}"]`); if (el) { el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); } }
+
+function slip(id){
+  const h = S.habits.find(x => x.id === id); if (!h) return;
+  snap();
+  const n = slipsToday(h) + 1, pts = h.pts * n, fine = h.fine * n;
+  h.slips.push(Date.now()); S.score -= pts; S.fines += fine;
+  const task = h.task ? (n > 1 ? `${h.task} ×${n}` : h.task) : "";
+  S.owed.push({id:uid(), habit:h.name, task, pts:Math.ceil(pts/2), fine, t:Date.now(), doubled:false});
+  log(`Slipped: ${h.name}${n > 1 ? ` (slip ${n} today, ×${n})` : ""}`, -pts);
+  try { navigator.vibrate?.(n > 1 ? [120,60,120,60,200] : 200); } catch {}
+  toast("red", `−${pts} pts${fine ? ` · ${inr(fine)}` : ""}${task ? ` · Owe ${task}` : ""}`, n > 1);
+  commit(); pulse(id, "flash-red");
+}
+function done(id){
+  const h = S.habits.find(x => x.id === id); if (!h || h.doneDays.includes(dayKey())) return;
+  snap(); h.doneDays.push(dayKey()); h.doneDays = h.doneDays.slice(-400);
+  const bonus = h.pts + Math.min(streak(h) - 1, 5);
+  S.score += bonus; log(`Done: ${h.name}`, bonus); toast("green", `+${bonus} pts · ${h.name}`); commit(); pulse(id, "flash-green");
+}
+function pay(id){
+  const o = S.owed.find(x => x.id === id); if (!o) return;
+  snap(); S.owed = S.owed.filter(x => x.id !== id);
+  const back = o.doubled ? 0 : o.pts; S.score += back;
+  log(`Penalty done: ${o.task || "fine paid"} (${o.habit})`, back);
+  toast("green", back ? `Penalty cleared · +${back} pts` : "Cleared. Too late for points back."); commit();
+}
+function removeHabit(id){
+  const h = S.habits.find(x => x.id === id); if (!h) return;
+  snap(); S.habits = S.habits.filter(x => x.id !== id); S.owed = S.owed.filter(o => o.habit !== h.name);
+  log(`Removed habit: ${h.name}`, 0); if (editingId === id) resetForm(); toast("green", `Removed ${h.name}`); commit();
+}
+function removeExamples(){
+  snap();
+  const names = S.habits.filter(h => h.example).map(h => h.name);
+  S.habits = S.habits.filter(h => !h.example);
+  S.owed = S.owed.filter(o => !names.includes(o.habit));
+  if (!S.habits.length) { const u = S.undo; S = blank(); S.undo = u; } // nothing of yours yet: start the score fresh
+  toast("green", "Examples removed"); commit();
+}
+function undo(){ if (!S.undo) return; S = S.undo; S.undo = null; save(); render(); toast("green", "Undone"); }
+
+/* render */
+function render(){
+  const avoid = S.habits.filter(h => h.type === "avoid"), build = S.habits.filter(h => h.type === "build");
+  const today = avoid.reduce((a,h) => a + slipsToday(h), 0);
+  $("dateLbl").textContent = new Date().toLocaleDateString("en-IN", {weekday:"short", day:"numeric", month:"short"});
+  $("stats").innerHTML = `
+    <div class="stat score ${S.score < START ? "low" : ""}"><span class="label">Score</span><b class="num">${S.score}</b></div>
+    <div class="stat"><span class="label">Fine jar</span><b class="num">${inr(S.fines)}</b></div>
+    <div class="stat"><span class="label">Slips today</span><b class="num">${today}</b></div>`;
+  $("undoBtn").disabled = !S.undo;
+  $("exampleBanner").hidden = !S.habits.some(h => h.example);
+  $("owedBadge").hidden = !S.owed.length; $("owedBadge").textContent = S.owed.length;
+
+  const tiles = [...avoid, ...build].map(h => {
+    if (h.type === "avoid") {
+      const n = slipsToday(h), nx = n + 1, c = cleanDays(h);
+      return `<div class="tile avoid" data-id="${h.id}">
+        <div class="kind">${ic("ban",'style="width:12px;height:12px"')}Stop</div>
+        <div class="name">${esc(h.name)}</div>
+        <div class="info">
+          ${n ? `<span class="hot">${n} slip${n > 1 ? "s" : ""} today</span>` : `<span class="${c ? "good" : ""}">${c} day${c === 1 ? "" : "s"} clean</span>`}
+          <span>Next: <b class="num">−${h.pts*nx}</b>${h.fine ? ` · ${inr(h.fine*nx)}` : ""}</span>
+        </div>
+        <button class="btn-red" data-slip="${h.id}">${ic("x")}Slipped</button></div>`;
+    }
+    const d = h.doneDays.includes(dayKey()), st = streak(h);
+    return `<div class="tile build" data-id="${h.id}">
+      <div class="kind">${ic("up",'style="width:12px;height:12px"')}Build</div>
+      <div class="name">${esc(h.name)}</div>
+      <div class="info"><span class="${st ? "good" : ""}">${st}-day streak</span><span>Earn <b class="num">+${h.pts}</b> a day</span></div>
+      <button class="btn-green" data-done="${h.id}" ${d ? "disabled" : ""}>${ic("check")}${d ? "Done" : "Did it"}</button></div>`;
+  });
+  tiles.push(`<button class="add-tile" data-tab="habits">${ic("plus")}Add habit</button>`);
+  $("tiles").innerHTML = tiles.join("");
+
+  $("owedBox").innerHTML = S.owed.length ? `<div class="rows">${S.owed.slice().reverse().map(o => {
+    const left = DAY - (Date.now() - o.t), late = left <= 0, hrs = Math.max(0, Math.ceil(left / 3600000));
+    return `<div class="row ${late ? "late" : ""}"><div class="grow"><b>${esc(o.task || "Pay the fine")}</b>${o.fine ? ` <span class="chip">${inr(o.fine * (o.doubled ? 2 : 1))}</span>` : ""}
+      <small>${esc(o.habit)} · ${late ? "Overdue, doubled" : `${hrs} h left · +${o.pts} pts if done`}</small></div>
+      <button class="btn-dark" data-pay="${o.id}">Done</button></div>`;
+  }).join("")}</div>` : `<div class="empty">Nothing owed. Keep it that way.</div>`;
+
+  $("logBox").innerHTML = S.log.length ? `<div class="rows">${S.log.slice(0, 50).map(l => {
+    const d = new Date(l.t);
+    return `<div class="row"><div class="grow">${esc(l.text)}<small>${d.toLocaleDateString("en-IN",{day:"numeric",month:"short"})}, ${d.toLocaleTimeString("en-IN",{hour:"numeric",minute:"2-digit"})}</small></div>
+      <span class="d num ${l.delta < 0 ? "neg" : l.delta > 0 ? "pos" : ""}">${l.delta > 0 ? "+" : ""}${l.delta || ""}</span></div>`;
+  }).join("")}</div>` : `<div class="empty">Your slips and wins will show up here.</div>`;
+
+  $("habitRows").innerHTML = S.habits.length ? `<div class="rows">${S.habits.map(h => confirmDel === h.id
+    ? `<div class="row confirm"><div class="grow"><b>Remove ${esc(h.name)}?</b><small>Its history stays in the log.</small></div>
+       <button class="btn-red" data-del-yes="${h.id}">Remove</button><button class="btn-ghost" data-del-no="1">Keep</button></div>`
+    : `<div class="row"><div class="grow"><b>${esc(h.name)}</b><small>${h.type === "avoid" ? `Stop · −${h.pts} pts${h.fine ? ` · ${inr(h.fine)}` : ""}${h.task ? ` · ${esc(h.task)}` : ""}` : `Build · +${h.pts} pts/day`}${h.example ? " · example" : ""}</small></div>
+       <div class="icons"><button class="sq" data-edit="${h.id}" aria-label="Edit ${esc(h.name)}">${ic("edit")}</button><button class="sq del" data-del="${h.id}" aria-label="Remove ${esc(h.name)}">${ic("trash")}</button></div></div>`
+  ).join("")}</div>` : `<div class="empty">No habits yet. Add your first one above.</div>`;
+}
+
+let tt;
+function toast(kind, text, red){
+  const t = $("toast");
+  t.className = "toast " + kind;
+  t.innerHTML = `${kind === "red" ? `<span class="card ${red ? "redcard" : ""}"></span>` : ""}<span>${esc(text)}</span>`;
+  t.hidden = false; clearTimeout(tt); tt = setTimeout(() => t.hidden = true, 2600);
+}
+
+/* tabs */
+function tab(name){
+  document.querySelectorAll("nav button").forEach(b => b.setAttribute("aria-selected", b.dataset.tab === name));
+  ["today","owed","log","habits"].forEach(v => $("v-" + v).hidden = v !== name);
+  $("main").scrollTop = 0;
+}
+
+/* form */
+function syncType(){
+  const a = $("f-type").value === "avoid";
+  document.querySelectorAll(".avoid-only").forEach(el => el.hidden = !a);
+  $("f-pts-label").textContent = a ? "Points lost per slip" : "Points earned per day";
+}
+function resetForm(){
+  editingId = null; $("habitForm").reset(); syncType();
+  $("formTitle").textContent = "Add a habit"; $("f-submit").textContent = "Add habit"; $("f-cancel").hidden = true;
+}
+$("f-type").addEventListener("change", syncType);
+$("habitForm").addEventListener("submit", e => {
+  e.preventDefault();
+  const a = $("f-type").value === "avoid";
+  const data = {name:$("f-name").value.trim(), type:$("f-type").value, pts:Math.max(1, +$("f-pts").value || 1), fine:a ? Math.max(0, +$("f-fine").value || 0) : 0, task:a ? $("f-task").value.trim() : ""};
+  if (!data.name) return;
+  snap();
+  if (editingId) { Object.assign(S.habits.find(h => h.id === editingId), data, {example:false}); log(`Edited: ${data.name}`, 0); }
+  else { S.habits.push({id:uid(), example:false, slips:[], doneDays:[], added:Date.now(), ...data}); log(`New habit: ${data.name}`, 0); }
+  resetForm(); commit(); toast("green", "Saved"); tab("today");
+});
+
+/* backup */
+$("exportBtn").onclick = () => {
+  const url = URL.createObjectURL(new Blob([JSON.stringify({...S, undo:null}, null, 1)], {type:"application/json"}));
+  const a = document.createElement("a"); a.href = url; a.download = `habit-referee-backup-${dayKey()}.json`; document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+};
+$("importBtn").onclick = () => $("importFile").click();
+$("importFile").onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  try { const d = JSON.parse(await f.text()); if (!Array.isArray(d.habits)) throw 0; snap(); const u = S.undo; S = d; S.undo = u; commit(); toast("green", "Backup restored"); tab("today"); }
+  catch { toast("red", "That file isn't a Habit Referee backup."); }
+  e.target.value = "";
+};
+
+document.addEventListener("click", e => {
+  const t = e.target.closest("button"); if (!t) return;
+  const ds = t.dataset;
+  if (ds.tab) { tab(ds.tab); if (t.classList.contains("add-tile")) { resetForm(); $("f-name").focus(); } }
+  else if (ds.slip) slip(ds.slip);
+  else if (ds.done) done(ds.done);
+  else if (ds.pay) pay(ds.pay);
+  else if (ds.del) { confirmDel = ds.del; render(); }
+  else if (ds.delYes) { confirmDel = null; removeHabit(ds.delYes); }
+  else if (ds.delNo) { confirmDel = null; render(); }
+  else if (ds.edit) {
+    const h = S.habits.find(x => x.id === ds.edit); editingId = h.id;
+    $("f-name").value = h.name; $("f-type").value = h.type; $("f-pts").value = h.pts; $("f-fine").value = h.fine; $("f-task").value = h.task;
+    syncType(); $("formTitle").textContent = "Edit habit"; $("f-submit").textContent = "Save changes"; $("f-cancel").hidden = false;
+    $("main").scrollTop = 0;
+  }
+  else if (t.id === "f-cancel") resetForm();
+  else if (t.id === "undoBtn") undo();
+  else if (t.id === "clearExamples") removeExamples();
+  else if (t.id === "resetBtn") $("resetBox").innerHTML = `<span class="note">Wipe all habits, score and log?</span><button class="btn-red" id="resetYes">Yes, reset</button><button class="btn-ghost" id="resetNo">Keep</button>`;
+  else if (t.id === "resetYes" || t.id === "resetNo") {
+    if (t.id === "resetYes") { snap(); const u = S.undo; S = blank(); S.undo = u; commit(); toast("green", "Everything reset"); }
+    $("resetBox").innerHTML = `<button class="btn-ghost" id="resetBtn">Reset everything</button>`;
+  }
+});
+
+syncType(); overdue(); save(); render();
+setInterval(() => { overdue(); render(); }, 60000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) { overdue(); render(); } });
+if ("serviceWorker" in navigator && location.protocol.startsWith("http")) navigator.serviceWorker.register("sw.js").catch(() => {});
+</script>
+</body>
+</html>
